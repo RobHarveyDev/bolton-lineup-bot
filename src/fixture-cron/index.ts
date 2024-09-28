@@ -41,10 +41,8 @@ export const handler = async (): Promise<void> => {
   const teamDetailsJson = await teamDetailsResponse.json() as TeamDetails
 
   const nextFixture = teamDetailsJson.fixtures.allFixtures.nextMatch
-  const today = new Date()
-  const kickOff = new Date(nextFixture.status.utcTime)
 
-  if (kickOff.toDateString() !== today.toDateString()) {
+  if (nextFixture.home.id !== BOLTON_TEAM_ID) {
     return
   }
 
@@ -57,6 +55,13 @@ export const handler = async (): Promise<void> => {
   }
 
   if (nextFixture.tournament.leagueId !== LEAGUE_ONE_ID) {
+    return
+  }
+
+  const today = new Date()
+  const kickOff = new Date(nextFixture.status.utcTime)
+
+  if (kickOff.toDateString() !== today.toDateString()) {
     return
   }
 
