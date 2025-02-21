@@ -46,9 +46,30 @@ export const handler = async (eventData: EventInput): Promise<void> => {
     return
   }
 
+  const secretsPort = 2773
+  const secretName = process.env.FOTMOB_TOKEN_SECRET
+
+  const secretsUrl = `http://localhost:${secretsPort}/secretsmanager/get?secretId=${secretName}`;
+
+  const secretsResponse = await fetch(secretsUrl, {
+    method: "GET",
+    headers: {
+      "X-Aws-Parameters-Secrets-Token": process.env.AWS_SESSION_TOKEN!,
+    },
+  })
+
+  if (!secretsResponse.ok) {
+    throw new Error(
+      `Error occurred while requesting secret ${secretName}. Responses status was ${secretsResponse.status}`
+    );
+  }
+
+  const secretContent = (await secretsResponse.json())
+  const secret = JSON.parse(secretContent.SecretString)
+
   const url = `https://www.fotmob.com/api/matchDetails?matchId=${eventData.matchId}`
 
-  const matchDetailsResponse = await fetch(url)
+  const matchDetailsResponse = await fetch(url, { headers: secret })
   const matchDetailsJson = await matchDetailsResponse.json() as MatchDetails
 
   if (matchDetailsJson.content.lineup === null) {

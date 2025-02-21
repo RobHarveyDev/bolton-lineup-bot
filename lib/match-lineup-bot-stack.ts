@@ -1,5 +1,6 @@
 import * as path from 'node:path'
 import * as cdk from 'aws-cdk-lib'
+import { RemovalPolicy } from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import * as dynamo from 'aws-cdk-lib/aws-dynamodb'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
@@ -44,19 +45,50 @@ export class MatchLineupBotStack extends cdk.Stack {
       groupName: 'lineup-schedule-group',
     })
 
+    const secretRotatorLambda = new nodejs.NodejsFunction(this, 'SecretRotatorLambda', {
+      functionName: 'fotmob-secret-rotator',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      projectRoot: projectRoot,
+      entry: path.join(lambdaRoot, 'update-secret', 'index.ts'),
+      handler: 'index.handler',
+      depsLockFilePath: path.join(projectRoot, 'package-lock.json'),
+      environment: {
+        FOTMOB_TOKEN_URL: 'http://46.101.91.154:6006/',
+        FOTMOB_TEST_URL: 'https://www.fotmob.com/api/currency'
+      },
+      timeout: cdk.Duration.seconds(10),
+      logRetention: RetentionDays.ONE_MONTH
+    })
+
+    const secretsLayerArn = 'arn:aws:lambda:eu-west-2:133256977650:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11'
+    const secretsLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'secrets-layer', secretsLayerArn)
+
+    const fotmobSecret = new secrets.Secret(this, 'fotmob-secret', {
+      secretName: 'match-bot/fotmob-secret',
+      removalPolicy: RemovalPolicy.DESTROY
+    })
+
+    fotmobSecret.addRotationSchedule('fotmob-secret-rotation', {
+      rotationLambda: secretRotatorLambda,
+      automaticallyAfter: cdk.Duration.days(1),
+      rotateImmediatelyOnUpdate: false
+    })
+
     const lineupCheckerRole = new iam.Role(this, 'LineCheckerRole', {
       assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
     })
     const lineupCheckerLambda = new nodejs.NodejsFunction(this, 'LineupCheckerLambda', {
       functionName: 'lineup-checker',
       runtime: lambda.Runtime.NODEJS_20_X,
+      layers: [secretsLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'check-lineup', 'index.ts'),
       handler: 'index.handler',
       depsLockFilePath: path.join(projectRoot, 'package-lock.json'),
       environment: {
         TABLE_NAME: table.tableName,
-        EVENT_BUS_ARN: eventBus.eventBusArn
+        EVENT_BUS_ARN: eventBus.eventBusArn,
+        FOTMOB_TOKEN_SECRET: fotmobSecret.secretName
       },
       timeout: cdk.Duration.seconds(10),
       logRetention: RetentionDays.ONE_MONTH
@@ -64,10 +96,12 @@ export class MatchLineupBotStack extends cdk.Stack {
     table.grantReadWriteData(lineupCheckerLambda)
     lineupCheckerLambda.grantInvoke(lineupCheckerRole)
     eventBus.grantPutEventsTo(lineupCheckerLambda)
+    fotmobSecret.grantRead(lineupCheckerRole)
 
     const fixtureCheckLambda = new nodejs.NodejsFunction(this, 'FixtureChecker', {
       functionName: 'fixture-cron',
       runtime: lambda.Runtime.NODEJS_20_X,
+      layers: [secretsLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'fixture-cron', 'index.ts'),
       handler: 'index.handler',
@@ -76,7 +110,8 @@ export class MatchLineupBotStack extends cdk.Stack {
         LINEUP_CHECKER_ARN: lineupCheckerLambda.functionArn,
         SCHEDULE_GROUP_NAME: lineupScheduleGroup.groupName,
         SCHEDULER_ROLE_ARN: lineupCheckerRole.roleArn,
-        TABLE_NAME: table.tableName
+        TABLE_NAME: table.tableName,
+        FOTMOB_TOKEN_SECRET: fotmobSecret.secretName
       },
       timeout: cdk.Duration.seconds(10),
       retryAttempts: 1,
@@ -85,6 +120,7 @@ export class MatchLineupBotStack extends cdk.Stack {
     table.grantWriteData(fixtureCheckLambda)
     lineupScheduleGroup.grantWriteSchedules(fixtureCheckLambda)
     lineupCheckerRole.grantPassRole(fixtureCheckLambda.grantPrincipal)
+    fotmobSecret.grantRead(fixtureCheckLambda)
 
     new scheduler.Schedule(this, 'DailyFixtureCheckSchedule', {
       scheduleName: 'daily-fixture-check',
@@ -97,13 +133,10 @@ export class MatchLineupBotStack extends cdk.Stack {
     const twilioSecretsName = 'match-bot/twilio'
     const twilioSecrets = secrets.Secret.fromSecretNameV2(this, 'twilio-secrets', twilioSecretsName)
 
-    const secretsLayerArn = 'arn:aws:lambda:eu-west-2:133256977650:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11'
     const makeLineupCallLambda = new nodejs.NodejsFunction(this, 'MakeLineupCallLambda', {
       functionName: 'make-lineup-call',
       runtime: lambda.Runtime.NODEJS_20_X,
-      layers: [
-        lambda.LayerVersion.fromLayerVersionArn(this, 'secrets-layer', secretsLayerArn)
-      ],
+      layers: [secretsLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'make-call', 'index.ts'),
       handler: 'index.handler',
@@ -116,7 +149,6 @@ export class MatchLineupBotStack extends cdk.Stack {
       logRetention: RetentionDays.ONE_MONTH
     })
     twilioSecrets.grantRead(makeLineupCallLambda)
-
     lineupSetRule.addTarget(new events_targets.LambdaFunction(makeLineupCallLambda))
   }
 }

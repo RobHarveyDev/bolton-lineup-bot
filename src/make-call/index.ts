@@ -8,9 +8,9 @@ interface EventData {
 
 export const handler = async (event: EventBridgeEvent<'Lineup Set', EventData>): Promise<void> => {
   const secretsPort = 2773
-  const secretArn = process.env.TWILIO_SECRET_NAME
+  const secretName = process.env.TWILIO_SECRET_NAME
 
-  const url = `http://localhost:${secretsPort}/secretsmanager/get?secretId=${secretArn}`;
+  const url = `http://localhost:${secretsPort}/secretsmanager/get?secretId=${secretName}`;
 
   const secretsResponse = await fetch(url, {
     method: "GET",
@@ -21,7 +21,7 @@ export const handler = async (event: EventBridgeEvent<'Lineup Set', EventData>):
 
   if (!secretsResponse.ok) {
     throw new Error(
-      `Error occurred while requesting secret ${secretArn}. Responses status was ${secretsResponse.status}`
+      `Error occurred while requesting secret ${secretName}. Responses status was ${secretsResponse.status}`
     );
   }
 
