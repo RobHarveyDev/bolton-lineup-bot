@@ -1,4 +1,5 @@
 import { EventBridgeEvent } from 'aws-lambda'
+import SecretManager from '../shared/secret-manager'
 
 interface EventData {
   matchId: number
@@ -7,27 +8,8 @@ interface EventData {
 }
 
 export const handler = async (event: EventBridgeEvent<'Lineup Set', EventData>): Promise<void> => {
-  const secretsPort = 2773
-  const secretName = process.env.TWILIO_SECRET_NAME
-
-  const url = `http://localhost:${secretsPort}/secretsmanager/get?secretId=${secretName}`;
-
-  const secretsResponse = await fetch(url, {
-    method: "GET",
-    headers: {
-      "X-Aws-Parameters-Secrets-Token": process.env.AWS_SESSION_TOKEN!,
-    },
-  })
-
-  if (!secretsResponse.ok) {
-    throw new Error(
-      `Error occurred while requesting secret ${secretName}. Responses status was ${secretsResponse.status}`
-    );
-  }
-
-  const secretContent = (await secretsResponse.json())
-
-  const secret = JSON.parse(secretContent.SecretString)
+  const secretClient = new SecretManager()
+  const secret = await secretClient.getSecret<Record<string, string>>(process.env.TWILIO_SECRET_NAME!)
   const accountSid = secret.TWILIO_ACCOUNT_SID;
   const authToken = secret.TWILIO_AUTH_TOKEN;
   const phoneFrom = secret.PHONE_FROM;

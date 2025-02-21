@@ -1,5 +1,6 @@
 import { CreateScheduleCommand, SchedulerClient } from '@aws-sdk/client-scheduler'
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb'
+import SecretManager from '../shared/secret-manager'
 
 interface TeamDetails {
   fixtures: {
@@ -37,33 +38,14 @@ export const handler = async (): Promise<void> => {
   const LEAGUE_ONE_ID = 108
   const BOLTON_TEAM_ID = 8559
 
-  const secretsPort = 2773
-  const secretName = process.env.FOTMOB_TOKEN_SECRET
-
-  const url = `http://localhost:${secretsPort}/secretsmanager/get?secretId=${secretName}`;
-
-  const secretsResponse = await fetch(url, {
-    method: "GET",
-    headers: {
-      "X-Aws-Parameters-Secrets-Token": process.env.AWS_SESSION_TOKEN!,
-    },
-  })
-
-  if (!secretsResponse.ok) {
-    throw new Error(
-      `Error occurred while requesting secret ${secretName}. Responses status was ${secretsResponse.status}`
-    );
-  }
-
-  const secretContent = (await secretsResponse.json())
-  const secret = JSON.parse(secretContent.SecretString)
+  const secretClient = new SecretManager()
+  const secret = await secretClient.getSecret<Record<string, string>>(process.env.FOTMOB_TOKEN_SECRET!)
 
   console.log('got secret', secret)
 
   const teamDetailsResponse = await fetch(`https://www.fotmob.com/api/teams?id=${BOLTON_TEAM_ID}`, { headers: secret })
   console.log('fotmob response status', teamDetailsResponse.status)
   const teamDetailsJson = await teamDetailsResponse.json() as TeamDetails
-  console.log('fotmob response data', teamDetailsJson)
 
   const nextFixture = teamDetailsJson.fixtures.allFixtures.nextMatch
 
