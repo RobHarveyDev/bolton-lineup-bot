@@ -96,7 +96,7 @@ export class MatchLineupBotStack extends cdk.Stack {
     table.grantReadWriteData(lineupCheckerLambda)
     lineupCheckerLambda.grantInvoke(lineupCheckerRole)
     eventBus.grantPutEventsTo(lineupCheckerLambda)
-    fotmobSecret.grantRead(lineupCheckerRole)
+    fotmobSecret.grantRead(lineupCheckerLambda)
 
     const fixtureCheckLambda = new nodejs.NodejsFunction(this, 'FixtureChecker', {
       functionName: 'fixture-cron',
