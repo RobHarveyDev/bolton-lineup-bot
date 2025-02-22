@@ -97,7 +97,7 @@ export const handler = async (): Promise<void> => {
   const schedulerClient = new SchedulerClient()
 
   const startLineupCheck = new Date(lineupAnnounced.toISOString())
-  startLineupCheck.setMinutes(lineupAnnounced.getMinutes() + 10)
+  startLineupCheck.setMinutes(lineupAnnounced.getMinutes() + 5)
 
   const endLineupCheck = new Date(lineupAnnounced.toISOString())
   endLineupCheck.setMinutes(lineupAnnounced.getMinutes() + 20)
@@ -106,7 +106,7 @@ export const handler = async (): Promise<void> => {
     Name: `check-lineup-${itemKey}`,
     GroupName: process.env.SCHEDULE_GROUP_NAME,
     FlexibleTimeWindow: { Mode: "OFF" },
-    StartDate: lineupAnnounced,
+    StartDate: startLineupCheck,
     EndDate: endLineupCheck,
     ScheduleExpression: 'rate(1 minute)',
     ActionAfterCompletion: 'DELETE',
