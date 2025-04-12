@@ -120,5 +120,26 @@ export const handler = async (): Promise<void> => {
     }
   })
 
-  await schedulerClient.send(createScheduleCommand)
+  const createAILineupCheckScheduleCommand = new CreateScheduleCommand({
+    Name: `check-lineup-${itemKey}`,
+    GroupName: process.env.SCHEDULE_GROUP_NAME,
+    FlexibleTimeWindow: { Mode: "OFF" },
+    StartDate: startLineupCheck,
+    EndDate: endLineupCheck,
+    ScheduleExpression: 'rate(1 minute)',
+    ActionAfterCompletion: 'DELETE',
+    Target: {
+      Arn: process.env.LINEUP_CHECKER_ARN,
+      RoleArn: process.env.SCHEDULER_ROLE_ARN,
+      Input: JSON.stringify({ matchId: nextFixture.id, lineupAnnouncementAt: lineupAnnounced.toISOString() }),
+      RetryPolicy: {
+        MaximumRetryAttempts: 1
+      }
+    }
+  })
+
+  await Promise.all([
+    schedulerClient.send(createScheduleCommand),
+    schedulerClient.send(createAILineupCheckScheduleCommand)
+  ])
 }

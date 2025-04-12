@@ -33,7 +33,7 @@ export class MatchLineupBotStack extends cdk.Stack {
     const lineupSetRule = new events.Rule(this, 'LineupSetRule', {
       eventBus: eventBus,
       eventPattern: {
-        source: ['lineup-checker'],
+        source: ['lineup-checker', 'ai-lineup-checker'],
         detailType: ['Lineup Set']
       }
     })
@@ -68,6 +68,11 @@ export class MatchLineupBotStack extends cdk.Stack {
       removalPolicy: RemovalPolicy.DESTROY
     })
 
+    const sharedSecrets = new secrets.Secret(this, 'shared-secrets', {
+      secretName: 'match-bot/shared-secrets',
+      removalPolicy: RemovalPolicy.RETAIN
+    })
+
     fotmobSecret.addRotationSchedule('fotmob-secret-rotation', {
       rotationLambda: secretRotatorLambda,
       automaticallyAfter: cdk.Duration.days(1),
@@ -97,6 +102,29 @@ export class MatchLineupBotStack extends cdk.Stack {
     lineupCheckerLambda.grantInvoke(lineupCheckerRole)
     eventBus.grantPutEventsTo(lineupCheckerLambda)
     fotmobSecret.grantRead(lineupCheckerLambda)
+    sharedSecrets.grantRead(lineupCheckerLambda)
+
+    const aiLineupCheckerLambda = new nodejs.NodejsFunction(this, 'AILineupCheckerLambda', {
+      functionName: 'ai-lineup-checker',
+      runtime: lambda.Runtime.NODEJS_20_X,
+      layers: [secretsLayer],
+      projectRoot: projectRoot,
+      entry: path.join(lambdaRoot, 'ai-check-lineup', 'index.ts'),
+      handler: 'index.handler',
+      depsLockFilePath: path.join(projectRoot, 'package-lock.json'),
+      environment: {
+        TABLE_NAME: table.tableName,
+        EVENT_BUS_ARN: eventBus.eventBusArn,
+        FOTMOB_TOKEN_SECRET: fotmobSecret.secretName,
+        SHARED_SECRETS: sharedSecrets.secretName
+      },
+      timeout: cdk.Duration.seconds(10),
+      logRetention: RetentionDays.ONE_MONTH
+    })
+    table.grantReadWriteData(aiLineupCheckerLambda)
+    aiLineupCheckerLambda.grantInvoke(lineupCheckerRole)
+    eventBus.grantPutEventsTo(aiLineupCheckerLambda)
+    sharedSecrets.grantRead(aiLineupCheckerLambda)
 
     const fixtureCheckLambda = new nodejs.NodejsFunction(this, 'FixtureChecker', {
       functionName: 'fixture-cron',
@@ -121,6 +149,7 @@ export class MatchLineupBotStack extends cdk.Stack {
     lineupScheduleGroup.grantWriteSchedules(fixtureCheckLambda)
     lineupCheckerRole.grantPassRole(fixtureCheckLambda.grantPrincipal)
     fotmobSecret.grantRead(fixtureCheckLambda)
+    sharedSecrets.grantRead(fixtureCheckLambda)
 
     new scheduler.Schedule(this, 'DailyFixtureCheckSchedule', {
       scheduleName: 'daily-fixture-check',
@@ -149,6 +178,7 @@ export class MatchLineupBotStack extends cdk.Stack {
       logRetention: RetentionDays.ONE_MONTH
     })
     twilioSecrets.grantRead(makeLineupCallLambda)
+    sharedSecrets.grantRead(makeLineupCallLambda)
     lineupSetRule.addTarget(new events_targets.LambdaFunction(makeLineupCallLambda))
   }
 }
