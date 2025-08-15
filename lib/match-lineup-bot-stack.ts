@@ -5,8 +5,8 @@ import { Construct } from 'constructs'
 import * as dynamo from 'aws-cdk-lib/aws-dynamodb'
 import * as lambda from 'aws-cdk-lib/aws-lambda'
 import * as nodejs from 'aws-cdk-lib/aws-lambda-nodejs'
-import * as scheduler from '@aws-cdk/aws-scheduler-alpha'
-import * as scheduler_targets from '@aws-cdk/aws-scheduler-targets-alpha'
+import * as scheduler from 'aws-cdk-lib/aws-scheduler'
+import * as scheduler_targets from 'aws-cdk-lib/aws-scheduler-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as events from 'aws-cdk-lib/aws-events'
 import * as events_targets from 'aws-cdk-lib/aws-events-targets'
@@ -41,8 +41,8 @@ export class MatchLineupBotStack extends cdk.Stack {
     const projectRoot = path.resolve(__dirname, '../')
     const lambdaRoot = path.resolve(__dirname, '../src')
 
-    const lineupScheduleGroup = new scheduler.Group(this, 'LineupScheduleGroup', {
-      groupName: 'lineup-schedule-group',
+    const lineupScheduleGroup = new scheduler.ScheduleGroup(this, 'LineupScheduleGroup', {
+      scheduleGroupName: 'lineup-schedule-group',
     })
 
     const secretsLayerArn = 'arn:aws:lambda:eu-west-2:133256977650:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11'
@@ -108,7 +108,7 @@ export class MatchLineupBotStack extends cdk.Stack {
       environment: {
         LINEUP_CHECKER_ARN: lineupCheckerLambda.functionArn,
         AI_LINEUP_CHECKER_ARN: aiLineupCheckerLambda.functionArn,
-        SCHEDULE_GROUP_NAME: lineupScheduleGroup.groupName,
+        SCHEDULE_GROUP_NAME: lineupScheduleGroup.scheduleGroupName,
         SCHEDULER_ROLE_ARN: lineupCheckerRole.roleArn,
         TABLE_NAME: table.tableName,
       },
