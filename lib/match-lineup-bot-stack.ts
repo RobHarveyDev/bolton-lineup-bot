@@ -58,7 +58,7 @@ export class MatchLineupBotStack extends cdk.Stack {
     })
     const lineupCheckerLambda = new nodejs.NodejsFunction(this, 'LineupCheckerLambda', {
       functionName: 'lineup-checker',
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       layers: [secretsLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'check-lineup', 'index.ts'),
@@ -78,7 +78,7 @@ export class MatchLineupBotStack extends cdk.Stack {
 
     const aiLineupCheckerLambda = new nodejs.NodejsFunction(this, 'AILineupCheckerLambda', {
       functionName: 'ai-lineup-checker',
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       layers: [secretsLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'ai-check-lineup', 'index.ts'),
@@ -99,7 +99,7 @@ export class MatchLineupBotStack extends cdk.Stack {
 
     const fixtureCheckLambda = new nodejs.NodejsFunction(this, 'FixtureChecker', {
       functionName: 'fixture-cron',
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       layers: [secretsLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'fixture-cron', 'index.ts'),
@@ -131,7 +131,7 @@ export class MatchLineupBotStack extends cdk.Stack {
 
     const makeLineupCallLambda = new nodejs.NodejsFunction(this, 'MakeLineupCallLambda', {
       functionName: 'make-lineup-call',
-      runtime: lambda.Runtime.NODEJS_20_X,
+      runtime: lambda.Runtime.NODEJS_22_X,
       layers: [secretsLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'make-call', 'index.ts'),
