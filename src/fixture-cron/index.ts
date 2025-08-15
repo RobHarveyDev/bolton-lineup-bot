@@ -1,6 +1,6 @@
 import { CreateScheduleCommand, SchedulerClient } from '@aws-sdk/client-scheduler'
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb'
-import SecretManager from '../shared/secret-manager'
+import FotmobClient from '../shared/fotmob-client'
 
 interface TeamDetails {
   fixtures: {
@@ -38,14 +38,9 @@ export const handler = async (): Promise<void> => {
   const LEAGUE_ONE_ID = 108
   const BOLTON_TEAM_ID = 8559
 
-  const secretClient = new SecretManager()
-  const secret = await secretClient.getSecret<Record<string, string>>(process.env.FOTMOB_TOKEN_SECRET!)
+  const client = new FotmobClient()
 
-  console.log('got secret', secret)
-
-  const teamDetailsResponse = await fetch(`https://www.fotmob.com/api/teams?id=${BOLTON_TEAM_ID}`, { headers: secret })
-  console.log('fotmob response status', teamDetailsResponse.status)
-  const teamDetailsJson = await teamDetailsResponse.json() as TeamDetails
+  const teamDetailsJson = await client.get<TeamDetails>(`/api/teams?id=${BOLTON_TEAM_ID}`)
 
   const nextFixture = teamDetailsJson.fixtures.allFixtures.nextMatch
 
@@ -73,6 +68,7 @@ export const handler = async (): Promise<void> => {
   }
 
   const lineupAnnounced = new Date(kickOff.toISOString())
+  lineupAnnounced.setMinutes(kickOff.getMinutes() - 15)
   lineupAnnounced.setHours(kickOff.getHours() - 1)
 
   const dynamoClient = new DynamoDBClient()
@@ -121,15 +117,15 @@ export const handler = async (): Promise<void> => {
   })
 
   const createAILineupCheckScheduleCommand = new CreateScheduleCommand({
-    Name: `check-lineup-${itemKey}`,
+    Name: `ai-check-lineup-${itemKey}`,
     GroupName: process.env.SCHEDULE_GROUP_NAME,
     FlexibleTimeWindow: { Mode: "OFF" },
-    StartDate: startLineupCheck,
-    EndDate: endLineupCheck,
+    StartDate: lineupAnnounced,
+    EndDate: startLineupCheck,
     ScheduleExpression: 'rate(1 minute)',
     ActionAfterCompletion: 'DELETE',
     Target: {
-      Arn: process.env.LINEUP_CHECKER_ARN,
+      Arn: process.env.AI_LINEUP_CHECKER_ARN,
       RoleArn: process.env.SCHEDULER_ROLE_ARN,
       Input: JSON.stringify({ matchId: nextFixture.id, lineupAnnouncementAt: lineupAnnounced.toISOString() }),
       RetryPolicy: {

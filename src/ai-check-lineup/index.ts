@@ -30,7 +30,7 @@ export const handler = async (eventData: EventInput): Promise<void> => {
   const accountId = '113873729220290769'
 
   const secretClient = new SecretManager()
-  const secret = await secretClient.getSecret<Record<string, string>>(process.env.SHARED_SECRETS!)
+  const secret = await secretClient.getSecret<Record<string, string>>(process.env.SECRET_NAME!)
 
   const mistralApiKey = secret.MISTRAL_API_KEY
 

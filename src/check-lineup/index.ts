@@ -1,7 +1,7 @@
 import { DynamoDBClient, GetItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb'
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb'
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge'
-import SecretManager from '../shared/secret-manager'
+import FotmobClient from '../shared/fotmob-client'
 
 interface Player {
   name: string
@@ -47,13 +47,8 @@ export const handler = async (eventData: EventInput): Promise<void> => {
     return
   }
 
-  const secretClient = new SecretManager()
-  const secret = await secretClient.getSecret<Record<string, string>>(process.env.FOTMOB_TOKEN_SECRET!)
-
-  const url = `https://www.fotmob.com/api/matchDetails?matchId=${eventData.matchId}`
-
-  const matchDetailsResponse = await fetch(url, { headers: secret })
-  const matchDetailsJson = await matchDetailsResponse.json() as MatchDetails
+  const client = new FotmobClient()
+  const matchDetailsJson = await client.get<MatchDetails>(`api/matchDetails?matchId=${eventData.matchId}`)
 
   if (matchDetailsJson.content.lineup === null) {
     return
