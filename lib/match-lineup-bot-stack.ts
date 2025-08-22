@@ -64,6 +64,9 @@ export class MatchLineupBotStack extends cdk.Stack {
       entry: path.join(lambdaRoot, 'check-lineup', 'index.ts'),
       handler: 'index.handler',
       depsLockFilePath: path.join(projectRoot, 'package-lock.json'),
+      bundling: {
+        nodeModules: ['jsdom']
+      },
       environment: {
         TABLE_NAME: table.tableName,
         EVENT_BUS_ARN: eventBus.eventBusArn,
@@ -105,6 +108,9 @@ export class MatchLineupBotStack extends cdk.Stack {
       entry: path.join(lambdaRoot, 'fixture-cron', 'index.ts'),
       handler: 'index.handler',
       depsLockFilePath: path.join(projectRoot, 'package-lock.json'),
+      bundling: {
+        nodeModules: ['jsdom']
+      },
       environment: {
         LINEUP_CHECKER_ARN: lineupCheckerLambda.functionArn,
         AI_LINEUP_CHECKER_ARN: aiLineupCheckerLambda.functionArn,

@@ -1,4 +1,5 @@
 import * as crypto from 'node:crypto'
+import { JSDOM } from 'jsdom'
 
 interface AuthTokenBody {
   url: string,
@@ -21,10 +22,8 @@ export default class FotmobClient {
 
     const response = await fetch(this.BASE_URL)
 
-    const parser = new DOMParser()
-    const dom =parser.parseFromString(await response.text(), 'text/html')
-
-    const versionSpan = dom.querySelector('span[class*="VersionNumber"]')
+    const dom = new JSDOM(await response.text())
+    const versionSpan = dom.window.document.querySelector('span[class*="VersionNumber"]')
 
     if (!versionSpan?.textContent) {
       throw new Error('Could not parse version number')
