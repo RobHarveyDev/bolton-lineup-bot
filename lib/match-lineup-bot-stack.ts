@@ -103,6 +103,7 @@ export class MatchLineupBotStack extends cdk.Stack {
     const fixtureCheckLambda = new nodejs.NodejsFunction(this, 'FixtureChecker', {
       functionName: 'fixture-cron',
       runtime: lambda.Runtime.NODEJS_22_X,
+      memorySize: 1024,
       layers: [secretsLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'fixture-cron', 'index.ts'),
@@ -118,7 +119,7 @@ export class MatchLineupBotStack extends cdk.Stack {
         SCHEDULER_ROLE_ARN: lineupCheckerRole.roleArn,
         TABLE_NAME: table.tableName,
       },
-      timeout: cdk.Duration.seconds(10),
+      timeout: cdk.Duration.seconds(60),
       retryAttempts: 1,
       logRetention: RetentionDays.ONE_MONTH
     })

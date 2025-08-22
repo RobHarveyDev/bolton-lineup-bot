@@ -11,15 +11,15 @@ export default class FotmobClient {
   private readonly BASE_URL: string = 'https://www.fotmob.com'
 
   public async get<T>(url: string): Promise<T> {
+    const authHeader = await this.getAuthToken(url)
     const response = await fetch(this.BASE_URL + url, {
-      headers: { 'x-mas': await this.getAuthToken(url) }
+      headers: { 'x-mas': authHeader }
     })
 
     return await response.json() as T
   }
 
   private async getAuthToken(url: string): Promise<string> {
-
     const response = await fetch(this.BASE_URL)
 
     const dom = new JSDOM(await response.text())
@@ -35,14 +35,13 @@ export default class FotmobClient {
       foo: versionSpan.textContent
     }
 
-
     return btoa(JSON.stringify({
       body: requestBody,
       signature: this.generateSignature(requestBody)
     }));
   }
 
-  private async generateSignature(requestBody: AuthTokenBody): Promise<string> {
+  private generateSignature(requestBody: AuthTokenBody): string {
     const string = `${JSON.stringify(requestBody)}${this.getStaticSignatureContent()}`
 
     const md5Hash = crypto.createHash('md5').update(string).digest('hex')

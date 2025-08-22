@@ -39,7 +39,6 @@ export const handler = async (): Promise<void> => {
   const BOLTON_TEAM_ID = 8559
 
   const client = new FotmobClient()
-
   const teamDetailsJson = await client.get<TeamDetails>(`/api/teams?id=${BOLTON_TEAM_ID}`)
 
   const nextFixture = teamDetailsJson.fixtures.allFixtures.nextMatch
@@ -73,6 +72,7 @@ export const handler = async (): Promise<void> => {
 
   const dynamoClient = new DynamoDBClient()
   const itemKey = kickOff.toISOString().split('T')[0]
+  console.log('adding fixture to dynamodb')
   const putFixtureCommand = new PutItemCommand({
     TableName: process.env.TABLE_NAME,
     Item: {
@@ -138,4 +138,5 @@ export const handler = async (): Promise<void> => {
     schedulerClient.send(createScheduleCommand),
     schedulerClient.send(createAILineupCheckScheduleCommand)
   ])
+  return
 }
