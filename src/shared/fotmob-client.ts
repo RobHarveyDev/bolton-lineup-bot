@@ -9,6 +9,7 @@ interface AuthTokenBody {
 
 export default class FotmobClient {
   private readonly BASE_URL: string = 'https://www.fotmob.com'
+  private readonly AUTH_PATH: string = '/en-GB/aboutUs/company'
 
   public async get<T>(url: string): Promise<T> {
     const authHeader = await this.getAuthToken(url)
@@ -20,7 +21,7 @@ export default class FotmobClient {
   }
 
   private async getAuthToken(url: string): Promise<string> {
-    const response = await fetch(this.BASE_URL)
+    const response = await fetch(this.BASE_URL + this.AUTH_PATH)
 
     const dom = new JSDOM(await response.text())
     const versionSpan = dom.window.document.querySelector('span[class*="VersionNumber"]')
@@ -32,13 +33,18 @@ export default class FotmobClient {
     const requestBody: AuthTokenBody = {
       url,
       code: new Date().getTime(),
-      foo: versionSpan.textContent
+      foo: this.cleanupString(versionSpan.textContent)
     }
 
     return btoa(JSON.stringify({
       body: requestBody,
       signature: this.generateSignature(requestBody)
     }));
+  }
+
+  private cleanupString(input: string): string {
+    const match = input.match(/^production:[a-f0-9]+/i);
+    return match ? match[0] : input;
   }
 
   private generateSignature(requestBody: AuthTokenBody): string {
