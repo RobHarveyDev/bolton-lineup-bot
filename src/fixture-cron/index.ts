@@ -67,8 +67,8 @@ export const handler = async (): Promise<void> => {
   }
 
   const lineupAnnounced = new Date(kickOff.toISOString())
-  lineupAnnounced.setMinutes(kickOff.getMinutes() - 15)
-  lineupAnnounced.setHours(kickOff.getHours() - 1)
+  lineupAnnounced.setHours(lineupAnnounced.getHours() - 1)
+  lineupAnnounced.setMinutes(lineupAnnounced.getMinutes() - 15)
 
   const dynamoClient = new DynamoDBClient()
   const itemKey = kickOff.toISOString().split('T')[0]
