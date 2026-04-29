@@ -39,6 +39,8 @@ jobs:
 
       - name: Run CDK diff
         id: cdk_diff
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           # Make the script executable
           chmod +x scripts/summarize-diff.sh
