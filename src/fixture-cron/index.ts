@@ -39,7 +39,7 @@ export const handler = async (): Promise<void> => {
   const BOLTON_TEAM_ID = 8559
 
   const client = new FotmobClient()
-  const teamDetailsJson = await client.get<TeamDetails>(`/api/teams?id=${BOLTON_TEAM_ID}`)
+  const teamDetailsJson = await client.get<TeamDetails>(`/api/data/teams?id=${BOLTON_TEAM_ID}`)
 
   const nextFixture = teamDetailsJson.fixtures.allFixtures.nextMatch
 

@@ -48,7 +48,7 @@ export const handler = async (eventData: EventInput): Promise<void> => {
   }
 
   const client = new FotmobClient()
-  const matchDetailsJson = await client.get<MatchDetails>(`api/matchDetails?matchId=${eventData.matchId}`)
+  const matchDetailsJson = await client.get<MatchDetails>(`api/data/matchDetails?matchId=${eventData.matchId}`)
 
   if (matchDetailsJson.content.lineup === null) {
     return
