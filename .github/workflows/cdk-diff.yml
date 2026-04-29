@@ -32,10 +32,10 @@ jobs:
         run: npm ci
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v6.0.0
+        uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
           aws-region: ${{ vars.AWS_REGION }}
-          role-to-assume: ${{ format('arn:aws:iam::{0}:role/{1}', secrets.AWS_ACCOUNT, secrets.AWS_ROLE_NAME) }}
+          role-to-assume: ${{ format('arn:aws:iam::{0}:role/{1}', secrets.AWS_ACCOUNT, vars.AWS_ROLE_NAME) }}
 
       - name: Run CDK diff
         id: cdk_diff
