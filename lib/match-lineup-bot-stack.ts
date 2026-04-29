@@ -48,7 +48,7 @@ export class MatchLineupBotStack extends cdk.Stack {
     const lambdaRoot = path.resolve(__dirname, '../src')
 
     const sharedEnv: Record<string, string> = {
-      NODE_OPTIONS: '-import @sentry/aws-serverless/awslambda-auto',
+      NODE_OPTIONS: '--import @sentry/aws-serverless/awslambda-auto',
       SENTRY_DSN: sentryDsn
     }
 
