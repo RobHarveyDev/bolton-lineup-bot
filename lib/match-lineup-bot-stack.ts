@@ -13,9 +13,15 @@ import * as events_targets from 'aws-cdk-lib/aws-events-targets'
 import * as secrets from 'aws-cdk-lib/aws-secretsmanager'
 import { RetentionDays } from 'aws-cdk-lib/aws-logs'
 
+interface MatchLineupBotStackProps extends cdk.StackProps {
+  sentryDsn: string
+}
+
 export class MatchLineupBotStack extends cdk.Stack {
-  constructor (scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor (scope: Construct, id: string, props: MatchLineupBotStackProps) {
     super(scope, id, props)
+
+    const { sentryDsn } = props
 
     const table = new dynamo.Table(this, 'FixturesTable', {
       tableName: 'match-bot-fixtures-table',
@@ -41,12 +47,20 @@ export class MatchLineupBotStack extends cdk.Stack {
     const projectRoot = path.resolve(__dirname, '../')
     const lambdaRoot = path.resolve(__dirname, '../src')
 
+    const sharedEnv: Record<string, string> = {
+      NODE_OPTIONS: '-import @sentry/aws-serverless/awslambda-auto',
+      SENTRY_DSN: sentryDsn
+    }
+
     const lineupScheduleGroup = new scheduler.ScheduleGroup(this, 'LineupScheduleGroup', {
       scheduleGroupName: 'lineup-schedule-group',
     })
 
     const secretsLayerArn = 'arn:aws:lambda:eu-west-2:133256977650:layer:AWS-Parameters-and-Secrets-Lambda-Extension:11'
     const secretsLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'secrets-layer', secretsLayerArn)
+
+    const sentryLayerArn = 'arn:aws:lambda:eu-west-2:943013980633:layer:SentryNodeServerlessSDKv10:64'
+    const sentryLayer = lambda.LayerVersion.fromLayerVersionArn(this, 'sentry-layer', sentryLayerArn)
 
     const sharedSecrets = new secrets.Secret(this, 'shared-secrets', {
       secretName: 'match-bot/shared-secrets',
@@ -59,7 +73,7 @@ export class MatchLineupBotStack extends cdk.Stack {
     const lineupCheckerLambda = new nodejs.NodejsFunction(this, 'LineupCheckerLambda', {
       functionName: 'lineup-checker',
       runtime: lambda.Runtime.NODEJS_24_X,
-      layers: [secretsLayer],
+      layers: [secretsLayer, sentryLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'check-lineup', 'index.ts'),
       handler: 'index.handler',
@@ -68,6 +82,7 @@ export class MatchLineupBotStack extends cdk.Stack {
         nodeModules: ['jsdom']
       },
       environment: {
+        ...sharedEnv,
         TABLE_NAME: table.tableName,
         EVENT_BUS_ARN: eventBus.eventBusArn,
       },
@@ -82,12 +97,13 @@ export class MatchLineupBotStack extends cdk.Stack {
     const aiLineupCheckerLambda = new nodejs.NodejsFunction(this, 'AILineupCheckerLambda', {
       functionName: 'ai-lineup-checker',
       runtime: lambda.Runtime.NODEJS_24_X,
-      layers: [secretsLayer],
+      layers: [secretsLayer, sentryLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'ai-check-lineup', 'index.ts'),
       handler: 'index.handler',
       depsLockFilePath: path.join(projectRoot, 'package-lock.json'),
       environment: {
+        ...sharedEnv,
         TABLE_NAME: table.tableName,
         EVENT_BUS_ARN: eventBus.eventBusArn,
         SECRET_NAME: sharedSecrets.secretName
@@ -104,7 +120,7 @@ export class MatchLineupBotStack extends cdk.Stack {
       functionName: 'fixture-cron',
       runtime: lambda.Runtime.NODEJS_24_X,
       memorySize: 1024,
-      layers: [secretsLayer],
+      layers: [secretsLayer, sentryLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'fixture-cron', 'index.ts'),
       handler: 'index.handler',
@@ -113,6 +129,7 @@ export class MatchLineupBotStack extends cdk.Stack {
         nodeModules: ['jsdom']
       },
       environment: {
+        ...sharedEnv,
         LINEUP_CHECKER_ARN: lineupCheckerLambda.functionArn,
         AI_LINEUP_CHECKER_ARN: aiLineupCheckerLambda.functionArn,
         SCHEDULE_GROUP_NAME: lineupScheduleGroup.scheduleGroupName,
@@ -139,12 +156,13 @@ export class MatchLineupBotStack extends cdk.Stack {
     const makeLineupCallLambda = new nodejs.NodejsFunction(this, 'MakeLineupCallLambda', {
       functionName: 'make-lineup-call',
       runtime: lambda.Runtime.NODEJS_24_X,
-      layers: [secretsLayer],
+      layers: [secretsLayer, sentryLayer],
       projectRoot: projectRoot,
       entry: path.join(lambdaRoot, 'make-call', 'index.ts'),
       handler: 'index.handler',
       depsLockFilePath: path.join(projectRoot, 'package-lock.json'),
       environment: {
+        ...sharedEnv,
         SECRET_NAME: sharedSecrets.secretName
       },
       timeout: cdk.Duration.seconds(10),

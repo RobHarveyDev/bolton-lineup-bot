@@ -1,0 +1,77 @@
+name: CDK Diff
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: cdk-diff-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cdk-diff:
+    name: CDK Diff
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: ${{ format('arn:aws:iam::{0}:role/{1}', secrets.AWS_ACCOUNT, vars.AWS_ROLE_NAME) }}
+
+      - name: Run CDK diff
+        id: cdk_diff
+        env:
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          # Make the script executable
+          chmod +x scripts/summarize-diff.sh
+          
+          # Run the summarize script which will populate the outputs
+          ./scripts/summarize-diff.sh >> $GITHUB_OUTPUT
+
+      - name: Find existing CDK diff comment
+        id: find_comment
+        uses: peter-evans/find-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '### 🔧 CDK Diff Results'
+          direction: last
+
+      - name: Create or update PR comment
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          body: |
+            ### 🔧 CDK Diff Results
+            
+            ${{ steps.cdk_diff.outputs.summary }}
+            
+            <details>
+            <summary>📋 Full CDK Diff Output</summary>
+            
+            ```
+            ${{ steps.cdk_diff.outputs.full_output }}
+            ```
+            </details>
+          edit-mode: replace
